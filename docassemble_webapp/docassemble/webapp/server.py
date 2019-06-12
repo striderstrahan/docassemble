@@ -782,7 +782,6 @@ import werkzeug
 from rauth import OAuth1Service, OAuth2Service
 import apiclient
 import oauth2client.client
-import strict_rfc3339
 import io
 from flask_kvsession import KVSessionExtension
 from simplekv.memory.redisstore import RedisStore
@@ -792,7 +791,6 @@ import docassemble.base.astparser
 import ast
 import docassemble.base.pdftk
 import docassemble.base.interview_cache
-#import docassemble.webapp.update
 from docassemble.base.standardformatter import as_html, as_sms, get_choices_with_abb, is_empty_mc
 from docassemble.base.pandoc import word_to_markdown, convertible_mimetypes, convertible_extensions
 from docassemble.webapp.screenreader import to_text
@@ -3181,7 +3179,7 @@ def get_vars_in_use(interview, interview_status, debug_mode=False, return_json=F
                 else:
                     content += '&nbsp;<a class="datrain" target="_blank" href="' + url_for('train', package=ml_parts[0], file=ml_parts[1], group_id=var) + '" title=' + json.dumps(word("Train")) + '><i class="fas fa-graduation-cap"></i></a>'
             content += '</td></tr>'
-        if len(all_sources):
+        if len(all_sources) and show_messages:
             content += search_key
             content += '\n                <tr><td>'
             content += '\n                  <ul>'
@@ -7011,7 +7009,7 @@ def index(action_argument=None):
         for (var i = 0; i < n; ++i){
           var key = formData[i]['name'];
           var val = formData[i]['value'];
-          if ($.inArray(key, daFieldsToSkip) != -1 || key.startsWith('_ignore')){
+          if ($.inArray(key, daFieldsToSkip) != -1 || key.indexOf('_ignore') == 0){
             continue;
           }
           if (typeof daVarLookupRev[key] != "undefined"){
@@ -7327,10 +7325,10 @@ def index(action_argument=None):
             return;
         }
         if (location.protocol === 'http:' || document.location.protocol === 'http:'){
-            daSocket = io.connect("http://" + document.domain + "/wsinterview", {path: '/ws/socket.io'});
+            daSocket = io.connect("http://" + document.domain + """ + '"' + ROOT + 'wsinterview' + '"' + """, {path: '""" + ROOT + """ws/socket.io'});
         }
         if (location.protocol === 'https:' || document.location.protocol === 'https:'){
-            daSocket = io.connect("https://" + document.domain + "/wsinterview" + location.port, {path: '/ws/socket.io'});
+            daSocket = io.connect("https://" + document.domain + """ + '"' + ROOT + 'wsinterview' + '"' + """ + location.port, {path: '""" + ROOT + """ws/socket.io'});
         }
         //console.log("daInitializeSocket: socket is " + daSocket);
         if (daSocket != null){
@@ -7487,7 +7485,7 @@ def index(action_argument=None):
                     //console.log("Need to click " + data.clicked);
                     $(data.clicked).prop("disabled", false);
                     $(data.clicked).addClass("da-click-selected");
-                    if ($(data.clicked).prop("tagName") == 'A' && typeof $(data.clicked).attr('href') != 'undefined' && ($(data.clicked).attr('href').startsWith('javascript') || $(data.clicked).attr('href').startsWith('#'))){
+                    if ($(data.clicked).prop("tagName") == 'A' && typeof $(data.clicked).attr('href') != 'undefined' && ($(data.clicked).attr('href').indexOf('javascript') == 0 || $(data.clicked).attr('href').indexOf('#') == 0)){
                       setTimeout(function(){
                         $(data.clicked).removeClass("da-click-selected");
                       }, 2200);
@@ -7706,7 +7704,7 @@ def index(action_argument=None):
                   var thisFileInfo = {name: the_file.name, size: the_file.size, type: the_file.type};
                   fileInfoList.push(thisFileInfo);
                   reader.onload = function(readerEvent){
-                    if (hasImages && the_file.type.match(/image.*/) && !the_file.type.startsWith('image/svg')){
+                    if (hasImages && the_file.type.match(/image.*/) && !(the_file.type.indexOf('image/svg') == 0)){
                       var convertedName = the_file.name;
                       var convertedType = the_file.type;
                       if (image_type){
@@ -7942,8 +7940,13 @@ def index(action_argument=None):
             document.activeElement.blur();
           }
           $(daTargetDiv).html(data.body);
-          $(daTargetDiv).parent().removeClass("dabody");
-          $(daTargetDiv).parent().removeClass("dasignature");
+          var bodyClasses = $(daTargetDiv).parent()[0].className.split(/\s+/);
+          var n = bodyClasses.length;
+          while (n--){
+            if (bodyClasses[n] == 'dabody' || bodyClasses[n] == 'dasignature' || bodyClasses[n].indexOf('question-') == 0){
+              $(daTargetDiv).parent().removeClass(bodyClasses[n]);
+            }
+          }
           $(daTargetDiv).parent().addClass(data.bodyclass);
           $("meta[name=viewport]").attr('content', "width=device-width, initial-scale=1");
           daDoAction = data.do_action;
@@ -8547,6 +8550,7 @@ def index(action_argument=None):
             $(this).addClass("dainvisible");
             rationalizeListCollect();
             $('div[data-collectnum="' + num + '"]').find('input, textarea, select').first().focus();
+            //$('div[data-collectnum="' + num + '"]')[0].scrollIntoView();
           }
           return false;
         });
@@ -8594,16 +8598,16 @@ def index(action_argument=None):
           $('#daquestionlabel').tab('show');
         });
         $('.dacurrency').each(function(){
-          var theVal = $(this).val();
-          if (theVal.includes('.') || theVal.includes(',')){
+          var theVal = $(this).val().toString();
+          if (theVal.indexOf('.') >= 0 || theVal.indexOf(',') >= 0){
             var num = parseFloat(theVal);
             var cleanNum = num.toFixed(""" + text_type(daconfig.get('currency decimal places', 2)) + """);
             $(this).val(cleanNum);
           }
         });
         $('.dacurrency').on('blur', function(){
-          var theVal = $(this).val();
-          if (theVal.includes('.') || theVal.includes(',')){
+          var theVal = $(this).val().toString();
+          if (theVal.indexOf('.') >= 0 || theVal.indexOf(',') >= 0){
             var num = parseFloat(theVal);
             var cleanNum = num.toFixed(""" + text_type(daconfig.get('currency decimal places', 2)) + """);
             $(this).val(cleanNum);
@@ -9274,14 +9278,17 @@ def index(action_argument=None):
       }
       $.validator.setDefaults({
         highlight: function(element) {
-            $(element).closest('.form-group').addClass('da-has-error');
+            $(element).closest('.form-group').addClass('da-group-has-error');
+            $(element).addClass('is-invalid');
         },
         unhighlight: function(element) {
-            $(element).closest('.form-group').removeClass('da-has-error');
+            $(element).closest('.form-group').removeClass('da-group-has-error');
+            $(element).removeClass('is-invalid');
         },
         errorElement: 'span',
-        errorClass: 'da-help-block',
+        errorClass: 'da-has-error',
         errorPlacement: function(error, element) {
+            $(error).addClass('text-danger');
             var elementName = $(element).attr("name");
             var lastInGroup = $.map(daValidationRules['groups'], function(thefields, thename){
               var fieldsArr;
@@ -10831,10 +10838,10 @@ def observer():
           }
         });
         if (location.protocol === 'http:' || document.location.protocol === 'http:'){
-            daSocket = io.connect("http://" + document.domain + "/observer" + location.port, {path: '/ws/socket.io'});
+            daSocket = io.connect("http://" + document.domain + '""" + ROOT + """observer' + location.port, {path: '""" + ROOT + """ws/socket.io'});
         }
         if (location.protocol === 'https:' || document.location.protocol === 'https:'){
-            daSocket = io.connect("https://" + document.domain + "/observer" + location.port, {path: '/ws/socket.io'});
+            daSocket = io.connect("https://" + document.domain + '""" + ROOT + """observer' + location.port, {path: '""" + ROOT + """ws/socket.io'});
         }
         if (typeof daSocket !== 'undefined') {
             daSocket.on('connect', function() {
@@ -11247,7 +11254,7 @@ def monitor():
               $("#daPhoneNumber").val('+' + the_number);
           }
           if (daPhoneNumberOk()){
-              $("#daPhoneNumber").parent().removeClass("da-has-error");
+              $("#daPhoneNumber").removeClass("is-invalid");
               $("#daPhoneError").addClass("dainvisible");
               daPhoneNumber = $("#daPhoneNumber").val();
               if (daPhoneNumber == ''){
@@ -11262,7 +11269,7 @@ def monitor():
               }, 2000);
           }
           else{
-              $("#daPhoneNumber").parent().addClass("da-has-error");
+              $("#daPhoneNumber").addClass("is-invalid");
               $("#daPhoneError").removeClass("dainvisible");
               daPhoneNumber = null;
               $(".phone").addClass("dainvisible");
@@ -11835,10 +11842,10 @@ def monitor():
           daLoadSoundBuffer('newconversation', '""" + url_for('static', filename='sounds/notification-stapler.mp3', v=da_version) + """', '""" + url_for('static', filename='sounds/notification-stapler.ogg', v=da_version) + """');
           daLoadSoundBuffer('signinout', '""" + url_for('static', filename='sounds/notification-snap.mp3', v=da_version) + """', '""" + url_for('static', filename='sounds/notification-snap.ogg', v=da_version) + """');
           if (location.protocol === 'http:' || document.location.protocol === 'http:'){
-              daSocket = io.connect("http://" + document.domain + "/monitor" + location.port, {path: '/ws/socket.io'});
+              daSocket = io.connect("http://" + document.domain + '""" + ROOT + """monitor' + location.port, {path: '""" + ROOT + """ws/socket.io'});
           }
           if (location.protocol === 'https:' || document.location.protocol === 'https:'){
-              daSocket = io.connect("https://" + document.domain + "/monitor" + location.port, {path: '/ws/socket.io'});
+              daSocket = io.connect("https://" + document.domain + '""" + ROOT + """monitor' + location.port, {path: '""" + ROOT + """ws/socket.io'});
           }
           //console.log("socket is " + daSocket)
           if (typeof daSocket !== 'undefined') {
@@ -13731,172 +13738,6 @@ def checkin_sync_with_onedrive():
     else:
         return jsonify(success=True, status='waiting', restart=False)
 
-# @app.route('/do_sync_with_google_drive', methods=['GET', 'POST'])
-# @login_required
-# @roles_required(['admin', 'developer'])
-# def do_sync_with_google_drive():
-#     if app.config['USE_GOOGLE_DRIVE'] is False:
-#         flash(word("Google Drive is not configured"), "error")
-#         return redirect(url_for('interview_list'))
-#     storage = RedisCredStorage(app='googledrive')
-#     credentials = storage.get()
-#     if not credentials or credentials.invalid:
-#         flow = get_gd_flow()
-#         uri = flow.step1_get_authorize_url()
-#         return redirect(uri)
-#     http = credentials.authorize(httplib2.Http())
-#     service = apiclient.discovery.build('drive', 'v3', http=http)
-#     the_folder = get_gd_folder()
-#     response = service.files().get(fileId=the_folder, fields="mimeType, id, name, trashed").execute()
-#     the_mime_type = response.get('mimeType', None)
-#     trashed = response.get('trashed', False)
-#     if trashed is True or the_mime_type != "application/vnd.google-apps.folder":
-#         flash(word("Error accessing Google Drive"), 'error')
-#         return redirect(url_for('google_drive'))
-#     local_files = dict()
-#     local_modtimes = dict()
-#     gd_files = dict()
-#     gd_ids = dict()
-#     gd_modtimes = dict()
-#     gd_deleted = dict()
-#     sections_modified = set()
-#     commentary = ''
-#     for section in ('static', 'templates', 'questions', 'modules', 'sources'):
-#         local_files[section] = set()
-#         local_modtimes[section] = dict()
-#         if section == 'questions':
-#             the_section = 'playground'
-#         elif section == 'templates':
-#             the_section = 'playgroundtemplate'
-#         else:
-#             the_section = 'playground' + section
-#         area = SavedFile(current_user.id, fix=True, section=the_section)
-#         for f in os.listdir(area.directory):
-#             local_files[section].add(f)
-#             local_modtimes[section][f] = os.path.getmtime(os.path.join(area.directory, f))
-#         subdirs = list()
-#         page_token = None
-#         while True:
-#             response = service.files().list(spaces="drive", fields="nextPageToken, files(id, name)", q="mimeType='application/vnd.google-apps.folder' and trashed=false and name='" + section + "' and '" + str(the_folder) + "' in parents").execute()
-#             for the_file in response.get('files', []):
-#                 if 'id' in the_file:
-#                     subdirs.append(the_file['id'])
-#             page_token = response.get('nextPageToken', None)
-#             if page_token is None:
-#                 break
-#         if len(subdirs) == 0:
-#             flash(word("Error accessing " + section + " in Google Drive"), 'error')
-#             return redirect(url_for('google_drive'))
-#         subdir = subdirs[0]
-#         gd_files[section] = set()
-#         gd_ids[section] = dict()
-#         gd_modtimes[section] = dict()
-#         gd_deleted[section] = set()
-#         page_token = None
-#         while True:
-#             response = service.files().list(spaces="drive", fields="nextPageToken, files(id, name, modifiedTime, trashed)", q="mimeType!='application/vnd.google-apps.folder' and '" + str(subdir) + "' in parents").execute()
-#             for the_file in response.get('files', []):
-#                 if re.search(r'(\.tmp|\.gdoc)$', the_file['name']):
-#                     continue
-#                 if re.search(r'^\~', the_file['name']):
-#                     continue
-#                 gd_ids[section][the_file['name']] = the_file['id']
-#                 gd_modtimes[section][the_file['name']] = strict_rfc3339.rfc3339_to_timestamp(the_file['modifiedTime'])
-#                 logmessage("Google says modtime on " + text_type(the_file) + " is " + the_file['modifiedTime'])
-#                 if the_file['trashed']:
-#                     gd_deleted[section].add(the_file['name'])
-#                     continue
-#                 gd_files[section].add(the_file['name'])
-#             page_token = response.get('nextPageToken', None)
-#             if page_token is None:
-#                 break
-#         gd_deleted[section] = gd_deleted[section] - gd_files[section]
-#         for f in gd_files[section]:
-#             logmessage("Considering " + f + " on GD")
-#             if f not in local_files[section] or gd_modtimes[section][f] - local_modtimes[section][f] > 3:
-#                 logmessage("Considering " + f + " to copy to local")
-#                 sections_modified.add(section)
-#                 commentary += "Copied " + f + " from Google Drive.  "
-#                 the_path = os.path.join(area.directory, f)
-#                 with open(the_path, 'wb') as fh:
-#                     response = service.files().get_media(fileId=gd_ids[section][f])
-#                     downloader = apiclient.http.MediaIoBaseDownload(fh, response)
-#                     done = False
-#                     while done is False:
-#                         status, done = downloader.next_chunk()
-#                         #logmessage("Download %d%%." % int(status.progress() * 100))
-#                 os.utime(the_path, (gd_modtimes[section][f], gd_modtimes[section][f]))
-#         for f in local_files[section]:
-#             logmessage("Considering " + f + ", which is a local file")
-#             if f not in gd_deleted[section]:
-#                 logmessage("Considering " + f + " is not in Google Drive deleted")
-#                 if f not in gd_files[section]:
-#                     logmessage("Considering " + f + " is not in Google Drive")
-#                     the_path = os.path.join(area.directory, f)
-#                     if os.path.getsize(the_path) == 0:
-#                         logmessage("Found zero byte file: " + the_path)
-#                         continue
-#                     logmessage("Copying " + f + " to Google Drive.")
-#                     commentary += "Copied " + f + " to Google Drive.  "
-#                     extension, mimetype = get_ext_and_mimetype(the_path)
-#                     the_modtime = strict_rfc3339.timestamp_to_rfc3339_utcoffset(local_modtimes[section][f])
-#                     logmessage("Setting GD modtime on new file " + text_type(f) + " to " + text_type(the_modtime))
-#                     file_metadata = { 'name': f, 'parents': [subdir], 'modifiedTime': the_modtime, 'createdTime': the_modtime }
-#                     media = apiclient.http.MediaFileUpload(the_path, mimetype=mimetype)
-#                     the_new_file = service.files().create(body=file_metadata,
-#                                                           media_body=media,
-#                                                           fields='id').execute()
-#                     new_id = the_new_file.get('id')
-#                 elif local_modtimes[section][f] - gd_modtimes[section][f] > 3:
-#                     logmessage("Considering " + f + " is in Google Drive but local is more recent")
-#                     the_path = os.path.join(area.directory, f)
-#                     if os.path.getsize(the_path) == 0:
-#                         logmessage("Found zero byte file during update: " + the_path)
-#                         continue
-#                     commentary += "Updated " + f + " on Google Drive.  "
-#                     extension, mimetype = get_ext_and_mimetype(the_path)
-#                     the_modtime = strict_rfc3339.timestamp_to_rfc3339_utcoffset(local_modtimes[section][f])
-#                     logmessage("Setting GD modtime on modified " + text_type(f) + " to " + text_type(the_modtime))
-#                     file_metadata = { 'modifiedTime': the_modtime }
-#                     media = apiclient.http.MediaFileUpload(the_path, mimetype=mimetype)
-#                     service.files().update(fileId=gd_ids[section][f],
-#                                            body=file_metadata,
-#                                            media_body=media).execute()
-#         for f in gd_deleted[section]:
-#             logmessage("Considering " + f + " is deleted on Google Drive")
-#             if f in local_files[section]:
-#                 logmessage("Considering " + f + " is deleted on Google Drive but exists locally")
-#                 if local_modtimes[section][f] - gd_modtimes[section][f] > 3:
-#                     logmessage("Considering " + f + " is deleted on Google Drive but exists locally and needs to be undeleted on GD")
-#                     commentary += "Undeleted and updated " + f + " on Google Drive.  "
-#                     the_path = os.path.join(area.directory, f)
-#                     extension, mimetype = get_ext_and_mimetype(the_path)
-#                     the_modtime = strict_rfc3339.timestamp_to_rfc3339_utcoffset(local_modtimes[section][f])
-#                     logmessage("Setting GD modtime on undeleted file " + text_type(f) + " to " + text_type(the_modtime))
-#                     file_metadata = { 'modifiedTime': the_modtime, 'trashed': False }
-#                     media = apiclient.http.MediaFileUpload(the_path, mimetype=mimetype)
-#                     service.files().update(fileId=gd_ids[section][f],
-#                                            body=file_metadata,
-#                                            media_body=media).execute()
-#                 else:
-#                     logmessage("Considering " + f + " is deleted on Google Drive but exists locally and needs to deleted locally")
-#                     sections_modified.add(section)
-#                     commentary += "Deleted " + f + " from Playground.  "
-#                     the_path = os.path.join(area.directory, f)
-#                     if os.path.isfile(the_path):
-#                         area.delete_file(f)
-#         area.finalize()
-#     for key in r.keys('da:interviewsource:docassemble.playground' + str(current_user.id) + ':*'):
-#         r.incr(key)
-#     if commentary != '':
-#         flash(commentary, 'info')
-#         logmessage(commentary)
-#     next = request.args.get('next', url_for('playground_page'))
-#     if 'modules' in sections_modified:
-#         return redirect(url_for('restart_page', next=next))
-#     return redirect(next)
-#     #return render_template('pages/testgoogledrive.html', tab_title=word('Google Drive Test'), page_title=word('Google Drive Test'), commentary=commentary)
-
 @app.route('/google_drive', methods=['GET', 'POST'])
 @login_required
 @roles_required(['admin', 'developer'])
@@ -14303,6 +14144,7 @@ def playground_office_taskpane():
     defaultDaServer = daconfig.get('url root', None)
     if defaultDaServer is None:
         defaultDaServer = request.url_root
+    defaultDaServer += daconfig.get('root', '/')
     return render_template('pages/officeouter.html', page_title=word("Docassemble Playground"), tab_title=word("Playground"), defaultDaServer=defaultDaServer, extra_js=Markup("\n        <script>" + indent_by(variables_js(office_mode=True), 9) + "        </script>")), 200
 
 @app.route('/officeaddin', methods=['GET', 'POST'])
@@ -15525,7 +15367,7 @@ def playground_packages():
           var daWhichButton = this;
           if ($("#commit_message").val().length == 0 || $("#commit_message_div").is(":hidden")){
             if ($("#commit_message_div").is(":visible")){
-              $("#commit_message").parent().addClass("da-has-error");
+              $("#commit_message").addClass("is-invalid");
             }
             else{
               $("#commit_message_div").show();
@@ -19911,6 +19753,28 @@ def api_session_back():
         return data['response']
     return jsonify(**data)
 
+def transform_json_variables(obj):
+    if isinstance(obj, string_types):
+        if re.search(r'^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T', obj):
+            try:
+                return docassemble.base.util.as_datetime(dateutil.parser.parse(obj))
+            except:
+                pass
+        else:
+            return obj
+    if isinstance(obj, (bool, int, float)):
+        return obj
+    if isinstance(obj, dict):
+        new_dict = dict()
+        for key, val in obj.items():
+            new_dict[transform_json_variables(key)] = transform_json_variables(val)
+        return new_dict
+    if isinstance(obj, list):
+        return [transform_json_variables(val) for val in obj]
+    if isinstance(obj, set):
+        return set([transform_json_variables(val) for val in obj])
+    return obj
+
 @app.route('/api/session', methods=['GET', 'POST', 'DELETE'])
 @csrf.exempt
 @crossdomain(origin='*', methods=['GET', 'POST', 'DELETE', 'HEAD'])
@@ -19942,6 +19806,7 @@ def api_session():
         session['uid'] = session_id
         secret = str(post_data.get('secret', None))
         question_name = post_data.get('question_name', None)
+        treat_as_raw = true_or_false(post_data.get('raw', False))
         reply_with_question = true_or_false(post_data.get('question', True))
         if yaml_filename is None or session_id is None:
             return jsonify_with_status("Parameters i and session are required.", 400)
@@ -19952,6 +19817,8 @@ def api_session():
                 variables = json.loads(post_data.get('variables', '{}'))
             except:
                 return jsonify_with_status("Malformed variables.", 400)
+        if not treat_as_raw:
+            variables = transform_json_variables(variables)
         if 'file_variables' in post_data and isinstance(post_data['file_variables'], dict):
             file_variables = post_data['file_variables']
         else:
@@ -20129,7 +19996,12 @@ def set_session_variables(yaml_filename, session_id, variables, secret=None, ret
         for key, val in variables.items():
             if illegal_variable_name(key) or contains_volatile.search(key):
                 raise Exception("Illegal value as variable name.")
-            exec(text_type(key) + ' = ' + repr(val), user_dict)
+            if isinstance(val, (docassemble.base.util.DADateTime, docassemble.base.util.DAObject)):
+                user_dict['_internal']['_tempvar'] = val
+                exec(text_type(key) + ' = _internal["_tempvar"]', user_dict)
+                del user_dict['_internal']['_tempvar']
+            else:
+                exec(text_type(key) + ' = ' + repr(val), user_dict)
             vars_set.add(key)
     except Exception as the_err:
         #release_lock(session_id, yaml_filename)
@@ -21451,7 +21323,8 @@ docassemble.base.functions.update_server(url_finder=get_url_from_file_reference,
                                          fg_make_pdf_for_word_path=fg_make_pdf_for_word_path,
                                          get_question_data=get_question_data,
                                          fix_pickle_obj=fix_pickle_obj,
-                                         main_page_parts=main_page_parts)
+                                         main_page_parts=main_page_parts,
+                                         SavedFile=SavedFile)
 #docassemble.base.util.set_user_id_function(user_id_dict)
 #docassemble.base.functions.set_generate_csrf(generate_csrf)
 #docassemble.base.parse.set_url_finder(get_url_from_file_reference)

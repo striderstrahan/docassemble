@@ -15,7 +15,7 @@
           <form action="" method="POST" class="form" role="form">
             {{ form.hidden_tag() }}
             {%- set field = form.username if user_manager.enable_username else form.email %}
-            <div class="form-group {% if field.errors %}has-error{% endif %}">
+            <div class="form-group {% if field.errors %}da-group-has-error{% endif %}">
               <div class="row">
                 <div class="col">
                   <label for="{{ field.id }}" class="control-label">{{ word(field.label.text) }}</label>
@@ -37,12 +37,12 @@
               {{ field(class_='form-control', type='email') }}
               {%- if field.errors %}
                 {%- for e in field.errors %}
-              <p class="da-help-block">{{ e }}</p>
+              <p class="da-has-error text-danger">{{ e }}</p>
                 {%- endfor %}
               {%- endif %}
             </div>
             {%- set field = form.password %}
-            <div class="form-group {% if field.errors %}has-error{% endif %}">
+            <div class="form-group {% if field.errors %}da-group-has-error{% endif %}">
               <div class="row">
                 <div class="col">
                   <label for="{{ field.id }}" class="control-label">{{ word(field.label.text) }}</label>
@@ -60,7 +60,7 @@
               {{ field(class_='form-control') }}
               {%- if field.errors %}
                 {%- for e in field.errors %}
-              <p class="da-help-block">{{ e }}</p>
+              <p class="da-has-error text-danger">{{ e }}</p>
                 {%- endfor %}
               {%- endif %}
             </div>

@@ -1,5 +1,41 @@
 # Change Log
 
+## [0.4.50] - 2019-06-11
+### Added
+- The `update on start` Configuration directive.
+### Changed
+- The `include_docx_template()` function now includes images, shapes,
+  styles, footnotes, etc. from the sub-document.
+- Problem with websockets on servers with a `root` other than `/`.
+- The `/api/session` POST API endpoint will now convert dates to
+  `DADateTime` objects, unless the `raw` parameter is `1`.
+### Fixed
+- Triple spacing in RTF documents.
+
+## [0.4.49] - 2019-06-08
+### Changed
+- Revised the CSS classes for error messages.
+### Fixed
+- Word add-in did not work for servers with a `root` other than `/`.
+
+## [0.4.48] - 2019-06-06
+### Added
+- The `.is_encrypted()` method of `DAFile` and other file objects.
+### Fixed
+- Dependency problems when `docassemble.base` was used without
+  `docassemble.webapp`.
+- Errors in the `DAFileCollection` version of `num_pages()` and
+  `size_in_bytes()`.
+- JavaScript used `.includes()` and `.startsWith()` methods, which are
+  not universally supported.
+
+## [0.4.47] - 2019-05-31
+### Added
+- Option for `'link'` style buttons with `action_button_html()`.
+### Fixed
+- Some types of `fields` gave errors with `list collect`.
+- Error re `UserModel`.
+
 ## [0.4.46] - 2019-05-30
 ### Fixed
 - Recursion error with `capitalize()` function.
@@ -53,7 +89,7 @@
 - Many CSS classes and IDs renamed and given the `da` prefix.
 ### Fixed
 - Errors with SMS interface.
-- Subclasses of `DAList` were not allowed in list collect.
+- Subclasses of `DAList` were not allowed in `list collect`.
 - Inefficiency with `last_access_time()`.
 
 ## [0.4.41] - 2019-05-02
